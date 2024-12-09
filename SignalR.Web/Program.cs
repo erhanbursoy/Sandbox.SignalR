@@ -40,21 +40,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 
 builder.Services.AddAuthorization();
-builder.Services.AddSignalR().AddHubOptions<NotificationHub>(options =>
-{
-    options.EnableDetailedErrors = true;
-});
+builder.Services.AddSignalR();
 
 builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
 
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.AllowAnyHeader()
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials() // SignalR için gerekli
-              .SetIsOriginAllowed(origin => true); // Tüm kaynaklara izin ver
+              .AllowCredentials();
     });
 });
 
@@ -72,9 +69,9 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+app.UseCors("CorsPolicy");
 app.MapHub<NotificationHub>("/notificationHub");
+app.MapControllers();
 
-app.UseCors(); // CORS'u etkinleþtirin
 
 app.Run();

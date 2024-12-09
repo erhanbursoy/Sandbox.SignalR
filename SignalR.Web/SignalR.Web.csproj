@@ -12,4 +12,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SignalR.Lib\SignalR.Lib\SignalR.Lib.csproj" />
+  </ItemGroup>
+
 </Project>

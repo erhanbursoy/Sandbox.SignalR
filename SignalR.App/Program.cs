@@ -1,54 +1,35 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using SignalR.Lib;
 using System.Net.Http.Json;
 
-Console.WriteLine("Username");
+Console.WriteLine("Enter username:");
 var username = Console.ReadLine();
-Console.WriteLine("Password");
+
+Console.WriteLine("Enter password:");
 var password = Console.ReadLine();
 
-// Kullanıcı adı ve şifre ile API'ye giriş yaparak token al
-var httpClient = new HttpClient();
-var loginResponse = await httpClient.PostAsJsonAsync("https://localhost:7181/api/authentication/login", new { Username = username, Password = password });
+// API'den token al
+var token = await GetTokenAsync(username, password);
 
-if (!loginResponse.IsSuccessStatusCode)
+var clientManager = new SignalRClientManager("https://localhost:7181/notificationHub", () => Task.FromResult(token));
+
+clientManager.On<string>("ReceiveMessage", message =>
 {
-    Console.WriteLine("Login failed.");
-    return;
-}
-
-var token = (await loginResponse.Content.ReadFromJsonAsync<TokenResponse>())?.Token;
-
-if (string.IsNullOrEmpty(token))
-{
-    Console.WriteLine("Token is null or empty.");
-    return;
-}
-
-// SignalR bağlantısını başlat
-var connection = new HubConnectionBuilder()
-    .WithUrl("https://localhost:7181/notificationHub", options =>
-    {
-        options.AccessTokenProvider = () => Task.FromResult(token);
-    })
-    .WithAutomaticReconnect()
-    .Build();
-
-connection.On<string>("ReceiveNotification", message =>
-{
-    Console.WriteLine($"Notification received: {message}");
+    Console.WriteLine($"Message received: {message}");
 });
 
-try
-{
-    await connection.StartAsync();
-    Console.WriteLine("Connected to the Notification Hub.");
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Failed to connect: {ex.Message}");
-}
-
-Console.WriteLine("Listening for notifications...");
+await clientManager.StartAsync();
+Console.WriteLine("Connected to SignalR Hub. Press Enter to exit...");
 Console.ReadLine();
+await clientManager.StopAsync();
 
-public record TokenResponse(string Token);
+static async Task<string> GetTokenAsync(string username, string password)
+{
+    var httpClient = new HttpClient();
+    var response = await httpClient.PostAsJsonAsync("https://localhost:7181/api/authentication/login", new { username, password });
+    response.EnsureSuccessStatusCode();
+
+    var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
+    return tokenResponse?.Token ?? string.Empty;
+}
+
+record TokenResponse(string Token);

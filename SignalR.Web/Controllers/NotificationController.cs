@@ -1,40 +1,38 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 
-[ApiController]
-[Route("api/[controller]")]
-public class NotificationController : ControllerBase
+namespace SignalR.Web.Controllers
 {
-    private readonly IHubContext<NotificationHub> _hubContext;
-
-    public NotificationController(IHubContext<NotificationHub> hubContext)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class NotificationController : ControllerBase
     {
-        _hubContext = hubContext;
-    }
+        private readonly IHubContext<NotificationHub> _hubContext;
 
-    [HttpPost("send")]
-    public async Task<IActionResult> SendMessage(string userId, string message)
-    {
-        try
+        public NotificationController(IHubContext<NotificationHub> hubContext)
         {
-            if (string.IsNullOrEmpty(userId))
-            {
-                // Tüm kullanıcılara mesaj gönder
-                await _hubContext.Clients.All.SendAsync("ReceiveNotification", message);
-            }
-            else
-            {
-                // Belirli bir kullanıcıya mesaj gönder
-                await _hubContext.Clients.User(userId).SendAsync("ReceiveNotification", message);
-            }
-
-            return Ok("Mesaj başarıyla gönderildi.");
+            _hubContext = hubContext;
         }
-        catch (Exception ex)
+
+        [HttpPost("sendToUser")]
+        public async Task<IActionResult> SendToUser(string userId, string message)
         {
-            return BadRequest($"Mesaj gönderimi sırasında hata: {ex.Message}");
+            await _hubContext.Clients.User(userId).SendAsync("ReceiveMessage", message);
+            return Ok();
+        }
+
+        [HttpPost("broadcast")]
+        public async Task<IActionResult> Broadcast(string message)
+        {
+            await _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
+            return Ok();
+        }
+
+        [HttpGet("connectedUsers")]
+        public IActionResult GetConnectedUsers()
+        {
+            var users = NotificationHub.GetConnectedUsers();
+            return Ok(users);
         }
     }
 }
-
-public record NotificationRequest(string UserId, string Message);
